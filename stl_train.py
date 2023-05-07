@@ -313,7 +313,7 @@ def main(args):
                 acc_reward = (acc_avg * 100).item()
                 stl_reward = (score_avg).item()
             elif args.il_mode=="first":
-                u, _, _ = model.actor.get_action_dist_params(seg_nn[:,iii])
+                u, _, _ = model.actor.get_action_dist_params(seg_nn[:,0])
                 if args.mode == "car":
                     u = torch.clip(torch.from_numpy(u * args.amax), -args.amax, args.amax).cuda()
                 elif args.mode == "ship2":
@@ -326,13 +326,13 @@ def main(args):
                     raise NotImplementError
                 u_est = u
             if args.il_mode=="first":
-                loss = torch.mean(torch.square(u_est-u_ref))
-            else:
                 loss = torch.mean(torch.square(u_est-u_ref[:,0]))
+            else:
+                loss = torch.mean(torch.square(u_est-u_ref))
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            if args.il_mode=="all":
+            if args.il_mode in ["all","first"]:
                 csvwriter.writerow([epi, loss.item(), eta.elapsed()])
             else:
                 csvwriter.writerow([epi, loss.item(), stl_reward, acc_reward, eta.elapsed()])
@@ -356,7 +356,7 @@ def main(args):
 
                 csvwriter_val.writerow([epi, reward_val, stl_reward_val, acc_reward_val, eta.elapsed()])
                 csvfile_val.flush()
-                if args.il_mode=="all":
+                if args.il_mode in ["all", "first"]:
                     print("%s|%06d  loss:%.3f acc_val:%.3f R:%.2f R':%.2f dT:%s T:%s ETA:%s" % (
                         args.exp_dir_full.split("/")[-1], epi, loss.item(), acc_avg_val.item(),
                         stl_reward_val, acc_reward_val, eta.interval_str(), eta.elapsed_str(), eta.eta_str()))
