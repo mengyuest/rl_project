@@ -1,0 +1,7 @@
+bak/*
+four.py
+viz*
+*.ckpt
+.vscode/*
+.idea/*
+__pycache__/*
