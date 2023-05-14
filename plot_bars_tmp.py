@@ -8,18 +8,14 @@ eval_dir = ospj("..", "exps_rlp", "eval_result")
 
 EXPS = ["e1_car", "e4_ship_track", "e5_rover"]
 # METHODS = ["ours", "rl_raw", "rl_stl", "rl_acc", "il", "il_rl_raw", "il_rl_stl", "il_rl_acc"]
-METHODS = ["ours", "rl_raw", "rl_stl", "rl_acc", "il", "il_rl_stl", "il_rl_acc"]
+METHODS = ["ours", "rl_raw", "rl_acc", "il", "il_rl_acc"]
+# METHODS = ["ours", "rl_raw", "rl_acc", "il"]
 METRICS = ["acc"]  # ["acc", "reward", "t", "safety", "battery", "goals"]
-
-cstr = "_r10c.5"
-path_d = {x:x for x in METHODS}
-path_d["rl_stl"]  = "rl_stl" + cstr
-path_d["il_rl_stl"] = "il_rl_stl" + cstr
 
 def get_data(exp_name):
     res = {}
     for method_str in METHODS:
-        data_path = ospj(eval_dir, "result_%s_%s.npz"%(exp_name, path_d[method_str]))
+        data_path = ospj(eval_dir, "result_%s_%s.npz"%(exp_name, method_str))
         print(data_path)
         if os.path.exists(data_path):
             res[method_str]=np.load(data_path, allow_pickle=True)["data_avg"]
@@ -41,32 +37,56 @@ for exp_name in EXPS:
 #     "il_rl_acc": "#ed897b",
 # }
 
+# color_d = {
+#     "ours": "#8AAA9A",
+#     "rl_raw": "#9D9878",
+#     "rl_stl": "#8D8868",
+#     "rl_acc": "#ed897b",
+#     "il": "#C6C4C2",
+#     "il_rl_raw":  "#8AAA9A",
+#     "il_rl_stl": "#417A68",
+#     "il_rl_acc": "#ed897b",
+# }
+
+
 color_d = {
-    "ours": "#417A68",  #"#9D9878",
-    "rl_raw": "#c2ba88", #"#9D9878",
+    "ours": "#f37c80",
+    "rl_raw": "#f2c472",
     "rl_stl": "#8D8868",
-    "rl_acc": "#5D5838",
+    "rl_acc": "#a7cd95",
     "il": "#C6C4C2",
     "il_rl_raw":  "#8AAA9A",
-    "il_rl_stl": "#ed897b",
-    "il_rl_acc": "#ed452d",
+    "il_rl_stl": "#417A68",
+    "il_rl_acc": "#5f939e",
 }
 
+# color_d = {
+#     "ours": "#417A68",
+#     "rl_raw": "#f37c80",
+#     "rl_stl": "#8D8868",
+#     "rl_acc": "#a7cd95",
+#     "il": "#C6C4C2",
+#     "il_rl_raw":  "#8AAA9A",
+#     "il_rl_stl": "#ed897b",
+#     "il_rl_acc": "#5f939e",
+# }
 
 
 name_d = {
     "ours": "Expert",
-    "rl_raw": "$RL_{R}$",
+    "rl_raw": "$RL_{Heur}$",
     "rl_stl": "$RL_{S}$",
-    "rl_acc": "$RL_{A}$",
+    "rl_acc": "$RL_{STL}$",
     "il": "$IL$",
     "il_rl_raw": "$IL$-$RL_{R}$",
     "il_rl_stl": "$IL$-$RL_{S}$",
-    "il_rl_acc": "$IL$-$RL_{A}$",
+    "il_rl_acc": "$IL$-$RL_{STL}$",
 }
 
-fontsize = 16
-label_fontsize = 12
+# fontsize = 16
+# label_fontsize = 12
+fontsize = 20
+label_fontsize = 20
 width=0.5
 
 MERGE_RL = False
@@ -113,20 +133,22 @@ for exp_name in EXPS:
             ax.set_xticks(xs)
 
             if metric=="acc":
-                # plt.ylim(0, 100.0)
-                do_nothing=1
+                plt.ylim(0, 85.0)
             elif metric != "t":
                 plt.ylim(0, np.max(ys))
-            plt.axhline(100*res["ours"].item()["acc"], linestyle="--", linewidth=2.0, color="black")
+
+            if metric == "acc" and exp_name == "e4_ship_track":
+                print("asd")
+                plt.axhline(100*res["ours"].item()["acc"], linestyle="--", linewidth=2.0, color="black")
+
             ax.set_xticklabels(names, fontsize=label_fontsize)
             plt.yticks(fontsize=label_fontsize)
             plt.xlabel("Methods", fontsize=fontsize)
             if metric == "acc":
-                plt.ylabel("STL satisfication rate (%)", fontsize=fontsize)
+                plt.ylabel("STL accuracy (%)", fontsize=fontsize)
             elif metric == "t":
                 plt.ylabel("Computation time (s)", fontsize=fontsize)
             else:
                 plt.ylabel(metric, fontsize=fontsize)
-
             plt.savefig("%s/%s_%s.png"%(ospj(eval_dir, "figs"), exp_name, metric), bbox_inches='tight', pad_inches=0.1)
             plt.close()

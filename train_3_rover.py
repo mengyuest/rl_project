@@ -65,7 +65,12 @@ if __name__ == "__main__":
     
     add("--train_il", action='store_true', default=False)
     add("--il_mode", type=str, default="all", choices=["all", "traj", "first"])
-
+    add("--rl_path", "-R", type=str, default=None)
+    add("--learn", action="store_true", default=False)
+    add("--load_others", action="store_true", default=False)
+    add('--il_lr', type=float, default=None)
+    add('--stl_ratio', type=float, default=1.0)
+    add('--stl_cap', type=float, default=None)
     args = parser.parse_args()
     args.no_acc_mask = True
     args.no_tanh = True

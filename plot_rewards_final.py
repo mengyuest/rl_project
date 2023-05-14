@@ -26,7 +26,7 @@ LOAD_SMOOTH=False
 COLORS={
     "rl_raw": "#f2b060", #"#f2c472", #"#9D9878",
     "rl_stl": "green",
-    "rl_acc": "#4ec06c", #"#a7cd95",
+    "rl_acc": "red", #"#a7cd95",
     "ours": "red",
 }
 
@@ -34,13 +34,13 @@ std_s=["", "_1008", "_1009"]
 
 paths=[
     ["exp1_ours", "exp1_rl_raw", "exp1_rl_stl", "exp1_rl_acc", ],
-    ["exp2_ours", "exp2_rl_raw", "exp2_rl_stl", "exp2_rl_acc", ],
-    ["exp3_ours", "exp3_rl_raw", "exp3_rl_stl", "exp3_rl_acc", ],
+    # ["exp2_ours", "exp2_rl_raw", "exp2_rl_stl", "exp2_rl_acc", ],
+    # ["exp3_ours", "exp3_rl_raw", "exp3_rl_stl", "exp3_rl_acc", ],
     ["exp4_ours", "exp4_rl_raw", "exp4_rl_stl", "exp4_rl_acc", ],
-    ["exp5_ours_v1", "exp5_rl_raw", "exp5_rl_stl", "exp5_rl_acc", ],
+    # ["exp5_ours_v1", "exp5_rl_raw", "exp5_rl_stl", "exp5_rl_acc", ],
 ]
 
-curves = [[[None] * len(std_s) for _ in range(len(paths[ii]))] for ii in range(5)]
+curves = [[[None] * len(std_s) for _ in range(len(paths[ii]))] for ii in range(len(paths))]
 
 def smooth(ls, bandwidth=100):
     new_ls = []
@@ -48,7 +48,7 @@ def smooth(ls, bandwidth=100):
         new_ls.append(np.mean(ls[max(0,i-bandwidth):i+bandwidth]))
     return np.array(new_ls)
 
-name_list=["Exp1-Traffic", "Exp2-Maze game", "Exp3-Ship1", "Exp4-Ship2", "Exp5-Rover"]
+name_list=["Exp1-Traffic", "Exp4-Ship", ]
 
 data_file_path = "%s/result_std.npz"%(root_dir)
 smooth_data_file_path = "%s/result_std_smooth.npz"%(root_dir)
@@ -101,18 +101,12 @@ def plt_proc(data, color, alpha, label, lw, rate):
         color=color, alpha=alpha * 0.3, linewidth=0.1)
 
 for mi in range(len(paths)):
-    if mi!=3:
-        continue
     print(mi, name_list[mi])
     ratio = 1
     plt.figure(figsize=(6, 4))
     ax=plt.gca()
     BANDWIDTH = 100
-    _RATE = 500
-    if mi==4:
-        RATE = _RATE*5
-    else:
-        RATE = _RATE*1
+    RATE = _RATE = 500
     FONTSIZE = 20
     LW = 2.0
     ALPHA=1.0
@@ -126,20 +120,17 @@ for mi in range(len(paths)):
         if mi==len(paths)-1:
             np.savez(smooth_data_file_path, data=curves)
     # plt.subplot(5, 3, mi * 3 + 3)
-    plt_proc(curves[mi][3], COLORS["rl_acc"], ALPHA, "$RL_{STL}$", LW, RATE)
-    plt_proc(curves[mi][1], COLORS["rl_raw"], ALPHA, "$RL_{Heur}$", LW, RATE)
-    # plt_proc(curves[mi][2], COLORS["rl_stl"], ALPHA, "$RL_S$", LW, RATE)
+    plt_proc(curves[mi][3], COLORS["rl_acc"], ALPHA, "$RL_{A}$", LW, RATE)
+    plt_proc(curves[mi][2], COLORS["rl_stl"], ALPHA, "$RL_S$", LW, RATE)
+    plt_proc(curves[mi][1], COLORS["rl_raw"], ALPHA, "$RL_{R}$", LW, RATE)
     
     # plt_proc(curves[mi][0], COLORS["ours"], ALPHA, "Ours", LW, RATE)
     plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     ax.xaxis.get_offset_text().set_fontsize(FONTSIZE)
     plt.xlabel("Training steps", fontsize=FONTSIZE)
     plt.ylabel("STL accuracy (%)", fontsize=FONTSIZE)
-    if mi==4:
-        plt.xlim(0, 250000)
-    else:
-        plt.xlim(0, 50000)
-    if mi==3:
+    plt.xlim(0, 50000)
+    if mi==1:
         plt.ylim(bottom=0)
     else:
         plt.ylim(0, 100)

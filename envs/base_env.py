@@ -99,7 +99,11 @@ class BaseEnv(Env):
             if last_one:
                 segs = to_torch(np.stack(self.history, axis=0)[None, :])
                 if self.args.stl_reward:
-                    return self.stl_reward(segs)[0, 0]
+                    stl_reward = self.stl_reward(segs)[0, 0]
+                    if self.args.stl_cap is not None:
+                        stl_reward = min(stl_reward, self.args.stl_cap)
+                    stl_reward = stl_reward * self.args.stl_ratio
+                    return stl_reward
                 elif self.args.acc_reward:
                     return self.acc_reward(segs)[0, 0]
                 else:

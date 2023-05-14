@@ -379,7 +379,7 @@ def test_ship(x_init, net_stl, net_cbf, rl_policy, stl):
         debug_tt1=time.time()
         dt_minus = 0
         
-        if args.rl:
+        if args.rl or args.il:
             _, u, dt_minus = get_rl_xs_us(x_input, rl_policy, args.nt)
             seg_out = dynamics(x.cpu(), u.cpu())
         else:
@@ -396,7 +396,7 @@ def test_ship(x_init, net_stl, net_cbf, rl_policy, stl):
         acc_avg = torch.mean(acc).item()
         reward = np.mean(the_env.generate_reward_batch(to_np(seg_total[:,0])))
         
-        print(ti, acc[:,0])
+        # print(ti, acc[:,0])
         safety = 1-np.mean(collide[ti])
         metrics["t"].append(debug_dt - dt_minus)
         metrics["safety"].append(safety)
@@ -527,7 +527,7 @@ def main():
 
     # testing case
     net_stl = Policy(args).cuda()
-    if args.rl:
+    if args.rl or args.il:
         from stable_baselines3 import SAC, PPO, A2C
         rl_policy = SAC.load(get_exp_dir()+"/"+args.rl_path, print_system_info=False)
         test_ship(x_init, net_stl, None, rl_policy, stl)
@@ -638,6 +638,7 @@ if __name__ == "__main__":
     add("--plan", action="store_true", default=False)
     add("--rl", action="store_true", default=False)
     add("--rl_path", "-R", type=str, default=None)
+    add("--rl_raw", action="store_true", default=False)
     add("--rl_stl", action="store_true", default=False)
     add("--rl_acc", action="store_true", default=False)
     add("--eval_path", type=str, default="eval_result")
@@ -653,6 +654,7 @@ if __name__ == "__main__":
     add("--video", action='store_true', default=False)
 
     add("--color", action='store_true', default=False)
+    add("--il", action="store_true", default=False)
     args = parser.parse_args()
 
     args.origin_sampling3 = True

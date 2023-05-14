@@ -264,7 +264,7 @@ def test_mars(net, rl_policy, stl, objs_np, objs):
                 # only when not in charger stations
                 x_input3 = x_input2.repeat([num_stations, 1])
                 x_input3[:, 4:6] = tmp_map[:, 0:2]                
-                if args.rl:
+                if args.rl or args.il:
                     _, u3, dt_minus = get_rl_xs_us(x_input3, rl_policy, args.nt, include_first=True)
                     seg3 = dynamics(x_input3, u3, include_first=True)
                     stl_score = stl(seg3, args.smoothing_factor, d={"hard":False})[:, :1]
@@ -280,7 +280,7 @@ def test_mars(net, rl_policy, stl, objs_np, objs):
                     seg = seg3[stl_max_i:stl_max_i+1]
 
             else:
-                if args.rl:
+                if args.rl or args.il:
                     _, u, dt_minus = get_rl_xs_us(x_input2, rl_policy, args.nt, include_first=True)
                 else:
                     u = net(x_input2)
@@ -461,7 +461,7 @@ def main():
 
     from stable_baselines3 import SAC, PPO, A2C
     rl_policy = None
-    if args.rl:
+    if args.rl or args.il:
         rl_policy = SAC.load(get_exp_dir()+"/"+args.rl_path, print_system_info=False)
     test_mars(net, rl_policy, stl, objs_np, objs)
     return
@@ -528,6 +528,7 @@ if __name__ == "__main__":
     add("--plan", action="store_true", default=False)
     add("--rl", action="store_true", default=False)
     add("--rl_path", "-R", type=str, default=None)
+    add("--rl_raw", action="store_true", default=False)
     add("--rl_stl", action="store_true", default=False)
     add("--rl_acc", action="store_true", default=False)
     add("--eval_path", type=str, default="eval_result")
@@ -535,6 +536,7 @@ if __name__ == "__main__":
     add("--no_eval", action="store_true", default=False)
 
     add("--finetune", action="store_true", default=False)
+    add("--il", action="store_true", default=False)
 
     args = parser.parse_args()
 

@@ -222,12 +222,22 @@ def sim_multi(net, rl_policy, stl):
     nt = 150 # 350
     N = 1
     n_vehs = 15 # 10
-    nx = 4
-    ny = 5
+    if args.demo:
+        nx = 5
+        ny = 4
+    else:
+        nx = 4
+        ny = 5
+    
     IW = 6
     n_roads = 16
-    dx_list = np.random.choice([10., 12, 15, 18], nx) + IW / 2
-    dy_list = np.random.choice([12., 13, 15, 20], ny) + IW / 2
+    
+    if args.demo:
+        dy_list = np.random.choice([10., 12, 15, 18], nx) + IW / 2
+        dx_list = np.random.choice([12., 13, 15, 20], ny) + IW / 2
+    else:
+        dx_list = np.random.choice([10., 12, 15, 18], nx) + IW / 2
+        dy_list = np.random.choice([12., 13, 15, 20], ny) + IW / 2
     map_xy = np.zeros((ny, nx, 2))
 
     # randomly assign traffic light (phases) and stop signs
@@ -349,6 +359,7 @@ def sim_multi(net, rl_policy, stl):
     CAR_L = 2
     CAR_W = 1.5
     fs_list = []
+    history = {vid:[] for vid in range(n_vehs)}
     for ti in range(nt):
         # compute cars_tri LOGIC
         cars_out_a = {}
@@ -407,7 +418,7 @@ def sim_multi(net, rl_policy, stl):
         if x_input.shape[0]>0:
             debug_t1=time.time()       
             
-            if args.rl:
+            if args.rl or args.il:
                 tmp_xs, u_output, dt_minus1 = get_rl_xs_us(x_input, rl_policy, args.nt, include_first=True)
             else:
                 u_output = net(x_input)
@@ -462,7 +473,7 @@ def sim_multi(net, rl_policy, stl):
         dt_minus2 = 0
         if x_input2.shape[0]>0:
             debug_t3=time.time()
-            if args.rl:
+            if args.rl or args.il:
                 tmp_xs, u_output2, dt_minus2 = get_rl_xs_us(x_input2, rl_policy, args.nt, include_first=True)
             else:
                 u_output2 = net(x_input2)
@@ -605,6 +616,9 @@ def sim_multi(net, rl_policy, stl):
         metrics["score"].append(score_avg)
         metrics["reward"].append(reward)
 
+        for veh_id in range(n_vehs):
+            history[veh_id].append(np.array(vehicles[veh_id].xy))
+
         # car-map visualization
         if args.no_viz==False:
             plt.figure(figsize=(12, 12))
@@ -657,18 +671,36 @@ def sim_multi(net, rl_policy, stl):
                 label = None
                 if veh_id == 0:
                     label = "Cars"
+                
+                if args.demo:
+                    NUM_ELAPSE = 8
+                    RATE = 3
+                    for xy_i, xy in enumerate(history[veh_id][::-RATE][:NUM_ELAPSE]):
+                        rect = Rectangle(xy-np.array([CAR_W/2,CAR_W/2]), CAR_W, CAR_W, color=color, alpha=max(0, 0.9 - 0.1 * (xy_i+1)), zorder=50)
+                        ax.add_patch(rect)
+
                 rect = Rectangle(veh.xy-np.array([CAR_W/2,CAR_W/2]), CAR_W, CAR_W, color=color, alpha=0.9, zorder=50, label=label)
                 ax.add_patch(rect)
+
+                
+
+
             ax = plt.gca()
             ax.tick_params(axis='both', which='major', labelsize=16)
             plt.xlabel("x (m)", fontsize=16)
             plt.ylabel("y (m)", fontsize=16)
             
             plt.axis("scaled")
-            plt.xlim(-4, 61)
-            plt.ylim(11, 97)
+            if args.demo:
+                plt.xlim(-4, 85)
+                plt.ylim(31, 97)
+                
+            else:
+                plt.xlim(-4, 61)
+                plt.ylim(11, 97)
             plt.legend(loc="upper center", fontsize=16, ncol=3, bbox_to_anchor=(0.5, 1.1))
-            plt.title("Simulation (%04d/%04d)" % (ti, nt), fontsize=16)
+            if args.demo==False:
+                plt.title("Simulation (%04d/%04d)" % (ti, nt), fontsize=16)
             filename = "%s/t_%03d.png"%(args.viz_dir, ti)
             plt.savefig(filename, bbox_inches='tight', pad_inches=0.1)
             fs_list.append(filename)
@@ -776,8 +808,8 @@ def main():
     # test for rl policy/nn policy
     from stable_baselines3 import SAC, PPO, A2C
     rl_policy = None
-    if args.rl:
-        rl_policy = SAC.load(get_exp_dir()+"/"+args.rl_path, print_system_info=False)
+    if args.rl or args.il:
+        rl_policy = SAC.load(get_exp_dir()+"/"+args.rl_path, print_system_info=False, policy_kwargs={"net_arch":{"pi":args.hiddens, "qf":[256, 256]}})
     sim_multi(net, rl_policy, stl)
     return
 
@@ -842,6 +874,7 @@ if __name__ == "__main__":
     add("--grad_steps", type=int, default=200)
     add("--grad_print_freq", type=int, default=10)
     add("--rl", action="store_true", default=False)
+    add("--rl_raw", action="store_true", default=False)
     add("--rl_stl", action="store_true", default=False)
     add("--rl_acc", action="store_true", default=False)
     add("--rl_path", "-R", type=str, default=None)
@@ -850,6 +883,9 @@ if __name__ == "__main__":
     add("--finetune", action="store_true", default=False)
     add("--backup", action='store_true', default=False)
     add("--video", action='store_true', default=False)
+
+    add("--il", action="store_true", default=False)
+    add("--demo", action="store_true", default=False)
     args = parser.parse_args()
     args.triggered=True
     args.heading=True

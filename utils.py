@@ -78,11 +78,27 @@ def xyr_2_Ab(x, y, r, num_edges=8):
 def eval_proc(metrics, e_name, args, metrics_avg=None):
     if metrics_avg is None:
         metrics_avg = {xx:np.mean(np.array(metrics[xx])) for xx in metrics}
-    if args.rl:
+    if args.il:
+        method="IL"
+        row_i=9
+        if args.rl_raw:
+            method="IL-RL-Raw"
+            row_i=10
+        if args.rl_stl:
+            method="IL-RL-STL"
+            if "_r1" in args.rl_path:
+                method=method+"_r1"+args.rl_path.split("_r1")[1].split("_")[0].split("/")[0]
+            row_i=11
+        if args.rl_acc:
+            method="IL-RL-acc"
+            row_i=12
+    elif args.rl:
         method="RL-Raw"
         row_i=1
         if args.rl_stl:
             method="RL-STL"
+            if "_r1" in args.rl_path:
+                method=method+"_r1"+args.rl_path.split("_r1")[1].split("_")[0].split("/")[0]
             row_i=2
         if args.rl_acc:
             method="RL-acc"
@@ -104,6 +120,9 @@ def eval_proc(metrics, e_name, args, metrics_avg=None):
             method="Ours-ft"
             row_i=8
     
+    if args.seed!=1007:
+        method+="_%d"%(args.seed)
+
     if "ship" in e_name:
         metrics_avg["safety"] = metrics["safety"][-1]
 
@@ -203,14 +222,14 @@ def setup_exp_and_logger(args, set_gpus=True, just_local=False, test=False, ford
     sys.stdout = logger = Logger()
     EXP_ROOT_DIR = get_exp_dir(just_local)
     if test:
-        if hasattr(args, "rl") and args.rl:
+        if (hasattr(args, "rl") and args.rl) or (hasattr(args, "il") and args.il):
             tuples = args.rl_path.split("/")
         else:
             tuples = args.net_pretrained_path.split("/")
         if ".ckpt" in tuples[-1] or ".zip" in tuples[-1] :
             EXP_ROOT_DIR = ospj(EXP_ROOT_DIR, tuples[-3])
         else:
-            EXP_ROOT_DIR = ospj(EXP_ROOT_DIR, tuples[-1])
+            EXP_ROOT_DIR = ospj(EXP_ROOT_DIR, tuples[0])
     
         args.exp_dir_full = os.path.join(EXP_ROOT_DIR, "test_%s" % (logger._timestr))
     else:

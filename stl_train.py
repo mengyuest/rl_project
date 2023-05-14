@@ -2,7 +2,7 @@ from stl_lib import *
 from matplotlib.patches import Polygon, Rectangle, Ellipse, Circle
 from matplotlib.collections import PatchCollection
 import utils
-from utils import to_np, uniform_tensor, rand_choice_tensor, generate_gif, to_torch, build_relu_nn, build_relu_nn1
+from utils import to_np, uniform_tensor, rand_choice_tensor, generate_gif, to_torch, build_relu_nn, build_relu_nn1, soft_step_hard
 from envs.base_env import BaseEnv
 from envs.car_env import CarEnv
 from envs.ship_env import ShipEnv
@@ -54,8 +54,9 @@ class CustomCallback(BaseCallback):
         if triggered:
             if epi % 100 == 0:
                 self.model.save("%s/model_last"%(args.model_dir))
-            if epi % ((args.epochs // args.num_workers)//5) == 0:
+            if epi % ((args.epochs // args.num_workers)//5)==0:
                 self.model.save("%s/model_%05d"%(args.model_dir, epi))
+                # print(self.model.policy.actor.latent_pi[0].weight[:2,:2].flatten())
         return True
 
 
@@ -195,7 +196,7 @@ def get_rl_xs_us(x, policy, nt, args, include_first=False):
         # u, _ = policy.predict(x.cpu(), deterministic=True)
         u, _, _ = policy.actor.get_action_dist_params(x)
         if args.mode == "car":
-            u = torch.clip(torch.from_numpy(u * args.amax), -args.amax, args.amax).cuda()
+            u = torch.clip(u * args.amax, -args.amax, args.amax).cuda()
             new_x = dynamics_per_step_car(x, u, args)
         elif args.mode == "ship2":
             u[..., 0] = torch.clip(u[..., 0] * args.thrust_max, -args.thrust_max, args.thrust_max)
@@ -239,8 +240,40 @@ def main(args):
         callback = CustomCallback(args=args, eta=eta)
 
         print("Now train the policy ...")
-        model = SAC("MlpPolicy", env, verbose=0, seed=args.seed, policy_kwargs={"net_arch":{"pi":args.hiddens, "qf":[256, 256]}})
+        if args.il_lr is not None:
+            model = SAC("MlpPolicy", env, verbose=0, seed=args.seed, policy_kwargs={
+                "net_arch":{"pi":args.hiddens, "qf":[256, 256]},
+                "share_features_extractor":False,
+            }, 
+            learning_rate=args.il_lr, 
+            learning_starts=0,
+            ent_coef=1,
+            )
+            print("model, lr=", model.learning_rate)
+            # model.num_timesteps=10000
+        else:
+            model = SAC("MlpPolicy", env, verbose=0, seed=args.seed, policy_kwargs={"net_arch":{"pi":args.hiddens, "qf":[256, 256]}})
+        if args.rl_path is not None:
+            # model.load(utils.find_path(args.rl_path))
+            model_new = SAC.load(utils.find_path(args.rl_path), print_system_info=False)
+            # model.actor.load_state_dict(model_new.actor.state_dict())
+            # model.critic.load_state_dict(model_new.critic.state_dict())
+            print("model_new, lr=", model_new.learning_rate)
+            if args.learn:
+                # model.policy.load_state_dict(model_new.policy.state_dict())
+                model.actor.load_state_dict(model_new.actor.state_dict())
+                print("model, lr=", model.learning_rate)
+                if args.load_others:
+                    model.actor.optimizer.load_state_dict(model_new.actor.optimizer.state_dict())
+                    model.critic.optimizer.load_state_dict(model_new.critic.optimizer.state_dict())
+                    print("model, lr=", model.learning_rate)
+            else:
+                # model.policy = model_new.policy
+                model.actor.load_state_dict(model_new.actor.state_dict())
+                model.critic.load_state_dict(model_new.critic.state_dict())
         if args.train_rl:
+            # print(model.learning_rate)
+            # exit()
             model.learn(total_timesteps=args.epochs*args.nt, callback=callback) #()
 
             print("Now evaluate ...")
@@ -289,7 +322,7 @@ def main(args):
                 for iii in range(args.nt):
                     u, _, _ = model.actor.get_action_dist_params(seg_nn[:,iii])
                     if args.mode == "car":
-                        u = torch.clip(torch.from_numpy(u * args.amax), -args.amax, args.amax).cuda()
+                        u = torch.clip(u * args.amax, -args.amax, args.amax).cuda()[:,0]
                     elif args.mode == "ship2":
                         u[..., 0] = torch.clip(u[..., 0] * args.thrust_max, -args.thrust_max, args.thrust_max)
                         u[..., 1] = torch.clip(u[..., 1] * args.delta_max, -args.delta_max, args.delta_max)
@@ -366,11 +399,15 @@ def main(args):
                         stl_reward, acc_reward, eta.interval_str(), eta.elapsed_str(), eta.eta_str()))
 
             # Save models
-            if epi % args.save_freq == 0:
-                torch.save(net.state_dict(), "%s/model_%05d.ckpt"%(args.model_dir, epi))
+            # if epi % args.save_freq == 0:
+            #     torch.save(net.state_dict(), "%s/model_%05d.ckpt"%(args.model_dir, epi))
 
-            if epi == args.epochs-1 or epi % 100 == 0:
-                torch.save(net.state_dict(), "%s/model_last.ckpt"%(args.model_dir))
+            # if epi == args.epochs-1 or epi % 100 == 0:
+            #     torch.save(net.state_dict(), "%s/model_last.ckpt"%(args.model_dir))
+            if epi % 10 == 0:
+                model.save("%s/model_last"%(args.model_dir))
+            if epi % ((args.epochs // args.num_workers)//5) == 0:
+                model.save("%s/model_%05d"%(args.model_dir, epi))
 
 
     else:  # STL-controller learning by maximizing robustness score
